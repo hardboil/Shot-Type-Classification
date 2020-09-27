@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shot Change Detection</title>
+</head>
+
+<body>
+    <div id="video-container">
+        <video id="video" controls width="480px" height="270px">
+            <source src="assets/TearsOfSteel.mp4" type="video/mp4"/>
+        </video>
+    </div>
+    <div id="time-container">detect time : <span id="playtime">0</span></div>
+    <div id="label-container">
+    </div>
+    <canvas id="canvas" width="480px" height="270px" style="display: none;"></canvas>
+    <hr />
+    <div id=""></div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<!-- Import @tensorflow/tfjs-core -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+<!-- wasm -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
+<!--webgl-->
+<!-- Adds the WebGL backend to the global backend registry -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script> -->
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+<script type="text/javascript">
+    // More API functions here:
+    // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
+
+    // the link to your model provided by Teachable Machine export panel
+    const URL = "https://teachablemachine.withgoogle.com/models/gkSAFHTx7/";
+
+    let model, webcam, labelContainer, maxPredictions, _playtime;
+
+    init();
+
+    async function init() {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        _playtime = document.getElementById("playtime");
+        labelContainer = document.getElementById("label-container");
+        for (let i = 0; i < maxPredictions; i++) { // and class labels
+            labelContainer.appendChild(document.createElement("div"));
+        }
+    }
+
+    let lastCurrentTime = 0;
+    let canvas = document.getElementById("canvas");
+    let ctx = canvas.getContext("2d");
+    let video = document.getElementById("video");
+
+    video.addEventListener("loadedmetadata", () => {
+        console.log("init canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+    });
+
+    video.addEventListener("play", () => {
+        console.log(this);
+    });
+
+    video.addEventListener("timeupdate", event => {
+        console.log(`[timeupdate] currentTime : ${video.currentTime}, lastCurrentTime : ${Math.ceil(lastCurrentTime)}, duration : ${video.duration}`);
+
+        if (Math.floor(lastCurrentTime) === Math.floor(video.currentTime)) {
+
+        }
+        else {
+            ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+            lastCurrentTime = video.currentTime;
+            predict(Math.floor(lastCurrentTime));
+        }
+        
+    });
+
+    async function predict(lastPlayTime) {
+        // predict can take in an image, video or canvas html element
+        const prediction = await model.predict(canvas);
+        for (let i = 0; i < maxPredictions; i++) {
+            const classPrediction = prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+            labelContainer.childNodes[i].innerHTML = classPrediction;
+            _playtime.innerHTML = lastPlayTime;
+        }
+    }
+</script>
+
+</html>
