@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shot Change Detection</title>
+</head>
+
+<body>
+    <div id="video-container">
+        <video id="video" controls width="480px" height="270px">
+            <source src="assets/TearsOfSteel_trim.mp4" type="video/mp4"/>
+        </video>
+    </div>
+    <div id="info-container"></div>
+    <hr/>
+    <div id="label-container"></div>
+    <canvas id="canvas" width="1280px" height="720px"></canvas>
+    <hr />
+    <div id=""></div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<!-- Import @tensorflow/tfjs-core -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+<!-- wasm -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script> -->
+<!--webgl-->
+<!-- Adds the WebGL backend to the global backend registry -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+<!-- <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script> -->
+<script type="text/javascript">
+    // More API functions here:
+    // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
+
+    // the link to your model provided by Teachable Machine export panel
+    // const URL = "https://teachablemachine.withgoogle.com/models/gkSAFHTx7/";
+
+    let useCanvas = false;
+    let model, webcam, labelContainer, maxPredictions, infoContainer;
+    let lables = ["Close Up", "Extreme Close Up", "Extreme Wide Shot", "Long Shot", "Medium Close Up", "Medium Shot"];
+
+    init();
+
+    async function init() {
+        const modelURL = "tfjs/model.json";
+
+        model = await tf.loadLayersModel(modelURL);
+        maxPredictions = 6;
+
+        infoContainer = document.getElementById("info-container");
+        labelContainer = document.getElementById("label-container");
+        for (let i = 0; i < maxPredictions; i++) { // and class labels
+            labelContainer.appendChild(document.createElement("div"));
+        }
+    }
+
+    let lastCurrentTime = 0;
+    let canvas = document.getElementById("canvas");
+    let ctx = canvas.getContext("2d");
+    let video = document.getElementById("video");
+
+    video.addEventListener("loadedmetadata", () => {
+        if(useCanvas) {
+            console.log("init canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+        }
+    });
+
+    video.addEventListener("play", () => {
+    });
+
+    video.addEventListener("timeupdate", event => {
+        console.log(`[timeupdate] currentTime : ${video.currentTime}, lastCurrentTime : ${Math.ceil(lastCurrentTime)}, duration : ${video.duration}`);
+
+        if (Math.floor(lastCurrentTime) === Math.floor(video.currentTime)) {
+
+        }
+        else {
+            if(useCanvas) {
+                ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+            }
+            // ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, 666, 357);
+            lastCurrentTime = video.currentTime;
+            predict(Math.floor(lastCurrentTime));
+        }
+        
+    });
+
+    async function predict(lastPlayTime) {
+        // predict can take in an image, video or canvas html element
+        let startTime = window.performance.now();
+        
+        let image;
+        if(useCanvas) {
+            image = tf.browser.fromPixels(canvas).resizeNearestNeighbor([224,224]).toFloat().expandDims();
+        }
+        else {
+            image = tf.browser.fromPixels(video).resizeNearestNeighbor([224,224]).toFloat().expandDims();
+        }
+        const modelPrediction = await model.predict(image);
+        // const prediction = await model.predict(image);
+        // console.log(`prediction : ${modelPrediction.dataSync()}`);
+        const prediction = modelPrediction.as1D().argMax().dataSync()[0];
+        // console.log(`prediction, lables[prediction] : ${prediction}, ${lables[prediction]}`);
+
+        for (let i = 0; i < lables.length; i++) {
+            const classPrediction = lables[i] + ": " + (Math.round(modelPrediction.dataSync()[i] * 100) / 100);
+            if (prediction === i) {
+                labelContainer.childNodes[i].innerHTML = "<span style='color: red; font-weight: bold;''>" + classPrediction + "</b>";
+            }else{
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+            }
+            
+        }
+
+        let endTime = window.performance.now();
+
+        console.log(`>>> Execute Time : ${endTime - startTime} ms`)
+        console.log(`  > prediction : ${modelPrediction.dataSync()}`);
+        console.log(`  > prediction, lables[prediction] : ${prediction}, ${lables[prediction]}`);
+
+        infoContainer.innerHTML = "playtime : " +  lastPlayTime + "sec, inference time : " + Math.round(endTime - startTime) + " ms";
+    }
+</script>
+
+</html>
