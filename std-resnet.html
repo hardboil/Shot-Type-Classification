@@ -43,8 +43,7 @@
     init();
 
     async function init() {
-        // const modelURL = "tfjs/model.json";
-        const modelURL = "https://storage.googleapis.com/dotple-blog/tfjs_model/shot_type_model/model.json";
+        const modelURL = "tfjs/model.json";
 
         model = await tf.loadLayersModel(modelURL);
         maxPredictions = 6;
